@@ -1,5 +1,5 @@
 ﻿using ServiceScan.SourceGenerator;
-using stochastic_backend_net.src.Shared.Routing;
+using StochasticBackend.src.Shared.Routing;
 
 namespace stochastic_backend_net.src.Shared.Extensions
 

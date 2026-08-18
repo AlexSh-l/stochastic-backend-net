@@ -1,4 +1,4 @@
-﻿namespace stochastic_backend_net.src.Shared.Routing
+﻿namespace StochasticBackend.src.Shared.Routing
 {
     public interface IEndpoint
     {

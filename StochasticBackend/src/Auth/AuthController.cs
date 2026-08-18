@@ -1,6 +1,6 @@
-﻿using stochastic_backend_net.src.Shared.Routing;
+﻿using StochasticBackend.src.Shared.Routing;
 
-namespace stochastic_backend_net.src.Auth
+namespace StochasticBackend.src.Auth
 {
     public class AuthController : IEndpoint
     {
