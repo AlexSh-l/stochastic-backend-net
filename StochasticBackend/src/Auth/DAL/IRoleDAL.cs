@@ -4,6 +4,6 @@ namespace StochasticBackend.src.Auth.DAL
 {
     public interface IRoleDAL
     {
-        Task<Role?> GetRoleByName(string name);
+        Task<Role?> GetRoleByNameAsync(string name);
     }
 }

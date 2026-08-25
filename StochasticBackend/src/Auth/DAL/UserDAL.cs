@@ -9,13 +9,13 @@ namespace StochasticBackend.src.Auth.DAL
     {
         private readonly ApplicationContext _dbContext = dbContext;
 
-        public async Task<User?> GetUserByLogin(string userLogin)
+        public async Task<User?> GetUserByLoginAsync(string userLogin)
         {
             var user = await _dbContext.Users.FirstOrDefaultAsync((user) => user.Login == userLogin);
             return user;
         }
 
-        public async Task<int> CreateUser(User user)
+        public async Task<int> CreateUserAsync(User user)
         {
             try
             {
@@ -24,7 +24,7 @@ namespace StochasticBackend.src.Auth.DAL
             }
             catch (Exception ex)
             {
-                throw new DatabaseException($"Unable to create user with login {user.Login}", ex);
+                throw new DatabaseException($"Unable to create user with login {user.Login}", nameof(User), ex);
             }
         }
     }

@@ -5,7 +5,7 @@ namespace StochasticBackend.src.Auth.DAL
 {
     public interface IUserDAL
     {
-        Task<User?> GetUserByLogin(string userLogin);
-        Task<int> CreateUser(User user);
+        Task<User?> GetUserByLoginAsync(string userLogin);
+        Task<int> CreateUserAsync(User user);
     }
 }

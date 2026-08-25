@@ -13,7 +13,7 @@ namespace StochasticBackend.src.Auth.Services
 
         public async Task<UserDTO?> LogUserIn(string userLogin)
         {
-            var user = await _userDAL.GetUserByLogin(userLogin);
+            var user = await _userDAL.GetUserByLoginAsync(userLogin);
             if (user is null)
             {
                 return null;
@@ -33,16 +33,23 @@ namespace StochasticBackend.src.Auth.Services
             return userDTO;
         }
 
-        public async Task<UserDTO?> RegisterUser(string login, string password)
+        public async Task<bool> RegisterUserAsync(string login, string password)
         {
-            Role? role = await _roleDAL.GetRoleByName(UserRoles.REGULAR);
-            if (role is null) { return null; }
+            Role? role = await _roleDAL.GetRoleByNameAsync(UserRoles.REGULAR);
+            if (role is null) { return false; }
 
             User user = new() { Login = login, Password = password, Role = role };
 
-            var result = await _userDAL.CreateUser(user);
-
-            return null;
+            try
+            {
+                var result = await _userDAL.CreateUserAsync(user);
+                return true;
+            }
+            catch (DatabaseException ex)
+            {
+                Console.WriteLine(ex.Message);
+                return false;
+            }
         }
     }
 }

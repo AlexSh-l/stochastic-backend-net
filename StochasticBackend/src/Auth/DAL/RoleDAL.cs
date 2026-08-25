@@ -8,7 +8,7 @@ namespace StochasticBackend.src.Auth.DAL
     {
         private readonly ApplicationContext _dbContext = dbContext;
 
-        public async Task<Role?> GetRoleByName(string name)
+        public async Task<Role?> GetRoleByNameAsync(string name)
         {
             var role = await _dbContext.Roles.FirstOrDefaultAsync(role => role.Name == name);
             return role;
