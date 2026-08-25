@@ -5,9 +5,9 @@ using StochasticBackend.src.Auth.Configuration;
 
 namespace StochasticBackend.src.Auth.Permissions
 {
-    public class PermissionsHandler(IMemoryCache memoryCache, IServiceScopeFactory scopeFactory): AuthorizationHandler<PermissionsRequirement>
+    public class PermissionsHandler(/*IMemoryCache memoryCache,*/ IServiceScopeFactory scopeFactory): AuthorizationHandler<PermissionsRequirement>
     {
-        private readonly IMemoryCache _memoryCache = memoryCache;
+        //private readonly IMemoryCache _memoryCache = memoryCache;
         private readonly IServiceScopeFactory _scopeFactory = scopeFactory;
 
 

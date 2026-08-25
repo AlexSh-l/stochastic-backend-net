@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using StochasticBackend.src.Auth.Entities;
+using StochasticBackend.src.Shared.DatabasePSQL;
 using StochasticBackend.src.Shared.Routing;
 using System.Security.Claims;
 
@@ -15,13 +16,13 @@ namespace StochasticBackend.src.Auth
 
         public static void MapEndpoint(IEndpointRouteBuilder builder)
         {
-            var group = builder.MapGroup("/auth");
+            var group = builder.MapGroup("/auth").WithTags("Auth");
             group.MapGet("/login", HandleLogin);
             group.MapGet("/register", HandleRegister);
             group.MapGet("/logout", HandleLogout);
         }
 
-        private static async void HandleLogin(HttpContext context)
+        private static async void HandleLogin(HttpContext context, ApplicationContext dbContext)
         {
             string login = "TestUser1";
             User? user = users.FirstOrDefault(u => u.Login == login);
@@ -33,20 +34,40 @@ namespace StochasticBackend.src.Auth
             }
 
             var claims = new List<Claim> { 
-                new Claim(ClaimTypes.Name, user.Login),
-                new Claim(ClaimTypes.Role, user.Role.Name)
+                new(ClaimTypes.Name, user.Login),
+                new(ClaimTypes.Role, user.Role.Name)
             };
             ClaimsIdentity claimsIdentity = new(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             ClaimsPrincipal claimsPrincipal = new(claimsIdentity);
 
             await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, claimsPrincipal);
 
+            //using(dbContext)
+            //{
+            //var permissions = dbContext.Permissions.ToList();
+            //foreach (var permission in permissions)
+            //{
+            //    Console.WriteLine(permission.Name);
+            //}
+            //}
+
+
+            //var role = dbContext.Roles.FirstOrDefault(value => value.Id == 3);
+            //var permission1 = dbContext.Permissions.FirstOrDefault(value => value.Id == 2);
+            //if (permission1 is not null && role is not null)
+            //{
+            //    role.Permissions.Add(permission1);
+            //}
+
+            //dbContext.SaveChanges();
+
+
             await context.Response.WriteAsJsonAsync(new { message = "user is logged in" });
         }
 
-        private static Task<IResult> HandleRegister()
+        private static async Task<IResult> HandleRegister()
         {
-            return Task.FromResult(Results.Ok("user just signed in"));
+            return TypedResults.Ok("user just signed in");
         }
 
         private static async void HandleLogout(HttpContext context)

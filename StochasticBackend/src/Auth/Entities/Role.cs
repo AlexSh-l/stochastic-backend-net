@@ -7,7 +7,7 @@ namespace StochasticBackend.src.Auth.Entities
         public int Id { get; set; }
         public string Name { get; set; } = UserRoles.GUEST;
 
-        public User? User { get; set; }
+        public List<User> Users { get; set; } = new();
 
         public List<Permission> Permissions { get; set; } = new();
     }

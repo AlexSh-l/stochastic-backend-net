@@ -1,12 +1,23 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
 using stochastic_backend_net.src.Shared.Extensions;
+using StochasticBackend.src.Auth.DAL;
 using StochasticBackend.src.Auth.Permissions;
+using StochasticBackend.src.Auth.Services;
+using StochasticBackend.src.Shared.DatabasePSQL;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddSingleton<IAuthorizationPolicyProvider, DynamicPermissionPolicyProvider>();
-builder.Services.AddSingleton<IAuthorizationHandler, PermissionsHandler>();
+var dbConnectionString = builder.Configuration.GetConnectionString("PostgresConnection");
+
+builder.Services.AddDbContext<ApplicationContext>((options) => {
+    Console.WriteLine(dbConnectionString);
+    options.UseNpgsql(dbConnectionString);
+    });
+
+builder.Services.AddScoped<IUserDAL, UserDAL>();
+builder.Services.AddScoped<IAuthService, AuthService>();
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
@@ -17,6 +28,9 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.ExpireTimeSpan = TimeSpan.FromDays(1);
     });
 builder.Services.AddAuthorization();
+
+builder.Services.AddSingleton<IAuthorizationPolicyProvider, DynamicPermissionPolicyProvider>();
+builder.Services.AddSingleton<IAuthorizationHandler, PermissionsHandler>();
 
 var app = builder.Build();
 

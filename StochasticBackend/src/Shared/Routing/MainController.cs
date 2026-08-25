@@ -14,10 +14,10 @@ namespace StochasticBackend.src.Shared.Routing
                 .RequirePermissions(EPermissionOperator.Or, "users:delete", "admin:all"); ;
         }
 
-        [HasPermission(EPermissionOperator.And, "images:view", "images:edit")]
-        private static Task<IResult> HandleMainRoute()
+        [HasPermissions(EPermissionOperator.And, "images:view", "images:edit")]
+        private static async Task<IResult> HandleMainRoute()
         {
-            return Task.FromResult(Results.Ok("hi"));
+            return TypedResults.Ok("hi");
         }
     }
 }
