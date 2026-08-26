@@ -3,34 +3,47 @@ using StochasticBackend.src.Auth.DAL;
 using StochasticBackend.src.Auth.DTO;
 using StochasticBackend.src.Auth.Entities;
 using StochasticBackend.src.Shared.DatabasePSQL;
+using StochasticBackend.src.Shared.Services;
 
 namespace StochasticBackend.src.Auth.Services
 {
-    public class AuthService(IUserDAL userDAL, IRoleDAL roleDAL) : IAuthService
+    public class AuthService(IUserDAL userDAL, IRoleDAL roleDAL, IHashingService hashingService) : IAuthService
     {
         private readonly IUserDAL _userDAL = userDAL;
         private readonly IRoleDAL _roleDAL = roleDAL;
+        private readonly IHashingService _hashingService = hashingService;
 
-        public async Task<UserDTO?> LogUserIn(string userLogin)
+        public async Task<UserDTO?> LogUserIn(string userLogin, string userPassword)
         {
-            var user = await _userDAL.GetUserByLoginAsync(userLogin);
-            if (user is null)
+            try
             {
-                return null;
-            }
-
-            UserDTO? userDTO = null;
-            if (user is not null)
-            {
-                userDTO = new UserDTO
+                var user = await _userDAL.GetUserByLoginAsync(userLogin);
+                if (user is null)
                 {
-                    Id = user.Id,
-                    Login = user.Login,
-                    Role = user.Role,
-                };
+                    return null;
+                }
+
+                bool isPasswordValid = await _hashingService.VerifyValueAsync(userPassword, user.Password);
+
+                UserDTO? userDTO = null;
+                if (isPasswordValid)
+                {
+                    userDTO = new UserDTO
+                    {
+                        Id = user.Id,
+                        Login = user.Login,
+                        Role = user.Role,
+                    };
+                }
+
+                return userDTO;
+            }
+            catch (DatabaseException ex)
+            {
+                Console.WriteLine(ex.Message);
             }
 
-            return userDTO;
+            return null;
         }
 
         public async Task<bool> RegisterUserAsync(string login, string password)
@@ -38,7 +51,9 @@ namespace StochasticBackend.src.Auth.Services
             Role? role = await _roleDAL.GetRoleByNameAsync(UserRoles.REGULAR);
             if (role is null) { return false; }
 
-            User user = new() { Login = login, Password = password, Role = role };
+            string hashedPassword = await _hashingService.HashValueAsync(password);
+
+            User user = new() { Login = login, Password = hashedPassword, Role = role };
 
             try
             {

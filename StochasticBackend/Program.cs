@@ -6,6 +6,7 @@ using StochasticBackend.src.Auth.DAL;
 using StochasticBackend.src.Auth.Permissions;
 using StochasticBackend.src.Auth.Services;
 using StochasticBackend.src.Shared.DatabasePSQL;
+using StochasticBackend.src.Shared.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,6 +17,7 @@ builder.Services.AddDbContext<ApplicationContext>((options) => {
     options.UseNpgsql(dbConnectionString);
     });
 
+builder.Services.AddSingleton<IHashingService, HashingService>();
 builder.Services.AddScoped<IUserDAL, UserDAL>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 

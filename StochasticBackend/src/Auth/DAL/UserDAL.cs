@@ -11,8 +11,15 @@ namespace StochasticBackend.src.Auth.DAL
 
         public async Task<User?> GetUserByLoginAsync(string userLogin)
         {
-            var user = await _dbContext.Users.FirstOrDefaultAsync((user) => user.Login == userLogin);
-            return user;
+            try
+            {
+                var user = await _dbContext.Users.FirstOrDefaultAsync((user) => user.Login == userLogin);
+                return user;
+            }
+            catch (Exception ex)
+            {
+                throw new DatabaseException($"Exception occured while trying to log in user {userLogin}", nameof(User), ex);
+            }
         }
 
         public async Task<int> CreateUserAsync(User user)
