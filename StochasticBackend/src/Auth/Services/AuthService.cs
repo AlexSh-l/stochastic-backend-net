@@ -13,7 +13,7 @@ namespace StochasticBackend.src.Auth.Services
         private readonly IRoleDAL _roleDAL = roleDAL;
         private readonly IHashingService _hashingService = hashingService;
 
-        public async Task<UserDTO?> LogUserIn(string userLogin, string userPassword)
+        public async Task<UserDTO?> LogUserInAsync(string userLogin, string userPassword)
         {
             try
             {
@@ -46,10 +46,10 @@ namespace StochasticBackend.src.Auth.Services
             return null;
         }
 
-        public async Task<bool> RegisterUserAsync(string login, string password)
+        public async Task<UserDTO?> RegisterUserAsync(string login, string password)
         {
             Role? role = await _roleDAL.GetRoleByNameAsync(UserRoles.REGULAR);
-            if (role is null) { return false; }
+            if (role is null) { return null; }
 
             string hashedPassword = await _hashingService.HashValueAsync(password);
 
@@ -58,12 +58,13 @@ namespace StochasticBackend.src.Auth.Services
             try
             {
                 var result = await _userDAL.CreateUserAsync(user);
-                return true;
+                UserDTO resultingUser = new() { Id = user.Id, Login = user.Login, Role = user.Role };
+                return resultingUser;
             }
             catch (DatabaseException ex)
             {
                 Console.WriteLine(ex.Message);
-                return false;
+                return null;
             }
         }
     }

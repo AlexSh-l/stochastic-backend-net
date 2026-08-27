@@ -5,7 +5,7 @@ namespace StochasticBackend.src.Auth.Services
 {
     public interface IAuthService
     {
-        Task<UserDTO?> LogUserIn(string userLogin, string userPassword);
-        Task<bool> RegisterUserAsync(string login, string password);
+        Task<UserDTO?> LogUserInAsync(string userLogin, string userPassword);
+        Task<UserDTO?> RegisterUserAsync(string login, string password);
     }
 }

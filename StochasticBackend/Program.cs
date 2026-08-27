@@ -19,6 +19,7 @@ builder.Services.AddDbContext<ApplicationContext>((options) => {
 
 builder.Services.AddSingleton<IHashingService, HashingService>();
 builder.Services.AddScoped<IUserDAL, UserDAL>();
+builder.Services.AddScoped<IRoleDAL, RoleDAL>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)

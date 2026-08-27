@@ -13,7 +13,18 @@ namespace StochasticBackend.src.Auth.DAL
         {
             try
             {
-                var user = await _dbContext.Users.FirstOrDefaultAsync((user) => user.Login == userLogin);
+                var user = await _dbContext.Users.LeftJoin(_dbContext.Roles, 
+                    user => user.RoleId, 
+                    role => role.Id,
+                    (user, role) => new User { 
+                        Id = user.Id, 
+                        Login = user.Login, 
+                        Password = user.Password,
+                        RoleId = role != null ? role.Id : 0, 
+                        Role = role ?? new Role()
+                    }
+                ).Where(user => user.Login == userLogin).FirstOrDefaultAsync();
+                //var user = await _dbContext.Users.FirstOrDefaultAsync((user) => user.Login == userLogin);
                 return user;
             }
             catch (Exception ex)

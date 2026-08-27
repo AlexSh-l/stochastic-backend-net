@@ -41,7 +41,6 @@ namespace StochasticBackend.src.Auth.Permissions
 
             if (requirement.Operator == EPermissionOperator.And)
             {
-                // All requested permissions must exist in the user's claims
                 if (requirement.Permissions.All(p => userPermissions.Contains(p)))
                 {
                     context.Succeed(requirement);
@@ -49,7 +48,6 @@ namespace StochasticBackend.src.Auth.Permissions
             }
             else if (requirement.Operator == EPermissionOperator.Or)
             {
-                // At least one requested permission must exist in the user's claims
                 if (requirement.Permissions.Any(p => userPermissions.Contains(p)))
                 {
                     context.Succeed(requirement);
