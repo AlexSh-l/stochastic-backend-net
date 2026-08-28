@@ -1,6 +1,6 @@
 ﻿namespace StochasticBackend.src.Shared.Services
 {
-    public interface IHashingService
+    public interface IHashingService: ISingletonService
     {
         string HashValue(string value);
 

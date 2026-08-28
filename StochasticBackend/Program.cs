@@ -2,11 +2,9 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using stochastic_backend_net.src.Shared.Extensions;
-using StochasticBackend.src.Auth.DAL;
 using StochasticBackend.src.Auth.Permissions;
-using StochasticBackend.src.Auth.Services;
 using StochasticBackend.src.Shared.DatabasePSQL;
-using StochasticBackend.src.Shared.Services;
+using StochasticBackend.src.Shared.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,11 +14,6 @@ builder.Services.AddDbContext<ApplicationContext>((options) => {
     Console.WriteLine(dbConnectionString);
     options.UseNpgsql(dbConnectionString);
     });
-
-builder.Services.AddSingleton<IHashingService, HashingService>();
-builder.Services.AddScoped<IUserDAL, UserDAL>();
-builder.Services.AddScoped<IRoleDAL, RoleDAL>();
-builder.Services.AddScoped<IAuthService, AuthService>();
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
@@ -36,6 +29,9 @@ builder.Services.AddSingleton<IAuthorizationPolicyProvider, DynamicPermissionPol
 builder.Services.AddSingleton<IAuthorizationHandler, PermissionsHandler>();
 
 builder.Services.AddMemoryCache();
+
+builder.Services.AddSingletonServices();
+builder.Services.AddScopedServices();
 
 var app = builder.Build();
 
