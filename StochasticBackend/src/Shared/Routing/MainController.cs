@@ -10,11 +10,11 @@ namespace StochasticBackend.src.Shared.Routing
         public static void MapEndpoint(IEndpointRouteBuilder builder)
         {
             var group = builder.MapGroup("/");
-            group.MapGet("/", HandleMainRoute)
-                .RequirePermissions(EPermissionOperator.Or, "users:delete", "admin:all"); ;
+            group.MapGet("/", HandleMainRoute);
+                //.RequirePermissions(EPermissionOperator.Or, "users:delete", "admin:all");
         }
 
-        [HasPermissions(EPermissionOperator.And, "images:view", "images:edit")]
+        [HasPermissions(EPermissionOperator.Or, UserPermissions.VIEW_IMAGES, UserPermissions.EDIT_IMAGES)]
         private static async Task<IResult> HandleMainRoute()
         {
             return TypedResults.Ok("hi");

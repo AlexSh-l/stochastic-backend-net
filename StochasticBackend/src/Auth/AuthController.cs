@@ -12,11 +12,6 @@ namespace StochasticBackend.src.Auth
 {
     public class AuthController : IEndpoint
     {
-        //private static List<User> users = new List<User> {
-        //    new User { Login = "TestUser1", Password = "TestUser12345", Role = new Role() },
-        //    new User { Login = "TestUser2", Password = "TestUser23456", Role = new Role() }
-        //};
-
         public static void MapEndpoint(IEndpointRouteBuilder builder)
         {
             var group = builder.MapGroup("/auth").WithTags("Auth");
@@ -31,7 +26,6 @@ namespace StochasticBackend.src.Auth
             string password = "TestUserPassword1";
 
             UserDTO? user = await authService.LogUserInAsync(login, password);
-            //User? user = users.FirstOrDefault(u => u.Login == login);
             if (user is null)
             {
                 context.Response.StatusCode = 401;
@@ -40,34 +34,13 @@ namespace StochasticBackend.src.Auth
             }
 
             var claims = new List<Claim> { 
-                new(ClaimTypes.Name, user.Login),
+                new(ClaimTypes.Name, user.Id.ToString()),
                 new(ClaimTypes.Role, user.Role.Name)
             };
             ClaimsIdentity claimsIdentity = new(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             ClaimsPrincipal claimsPrincipal = new(claimsIdentity);
 
             await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, claimsPrincipal);
-
-            //using(dbContext)
-            //{
-            //var permissions = dbContext.Permissions.ToList();
-            //foreach (var permission in permissions)
-            //{
-            //    Console.WriteLine(permission.Name);
-            //}
-            //}
-
-
-            //var role = dbContext.Roles.FirstOrDefault(value => value.Id == 3);
-            //var permission1 = dbContext.Permissions.FirstOrDefault(value => value.Id == 2);
-            //if (permission1 is not null && role is not null)
-            //{
-            //    role.Permissions.Add(permission1);
-            //}
-
-            //dbContext.SaveChanges();
-
-
             await context.Response.WriteAsJsonAsync(new { message = "user is logged in" });
         }
 
@@ -85,7 +58,7 @@ namespace StochasticBackend.src.Auth
             }
 
             var claims = new List<Claim> {
-                new(ClaimTypes.Name, user.Login),
+                new(ClaimTypes.Name, user.Id.ToString()),
                 new(ClaimTypes.Role, user.Role.Name)
             };
             ClaimsIdentity claimsIdentity = new(claims, CookieAuthenticationDefaults.AuthenticationScheme);

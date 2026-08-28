@@ -24,7 +24,7 @@ namespace StochasticBackend.src.Auth.DAL
                         Role = role ?? new Role()
                     }
                 ).Where(user => user.Login == userLogin).FirstOrDefaultAsync();
-                //var user = await _dbContext.Users.FirstOrDefaultAsync((user) => user.Login == userLogin);
+
                 return user;
             }
             catch (Exception ex)

@@ -35,6 +35,8 @@ builder.Services.AddAuthorization();
 builder.Services.AddSingleton<IAuthorizationPolicyProvider, DynamicPermissionPolicyProvider>();
 builder.Services.AddSingleton<IAuthorizationHandler, PermissionsHandler>();
 
+builder.Services.AddMemoryCache();
+
 var app = builder.Build();
 
 app.UseAuthentication();
