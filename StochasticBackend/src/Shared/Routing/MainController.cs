@@ -1,4 +1,9 @@
-﻿namespace StochasticBackend.src.Shared.Routing
+﻿using Microsoft.AspNetCore.Authorization;
+using StochasticBackend.src.Auth.Attributes;
+using StochasticBackend.src.Auth.Configuration;
+using StochasticBackend.src.Auth.Extensions;
+
+namespace StochasticBackend.src.Shared.Routing
 {
     public class MainController : IEndpoint
     {
@@ -6,11 +11,13 @@
         {
             var group = builder.MapGroup("/");
             group.MapGet("/", HandleMainRoute);
+                //.RequirePermissions(EPermissionOperator.Or, "users:delete", "admin:all");
         }
 
-        private static Task<IResult> HandleMainRoute()
+        [HasPermissions(EPermissionOperator.Or, UserPermissions.VIEW_IMAGES, UserPermissions.EDIT_IMAGES)]
+        private static async Task<IResult> HandleMainRoute()
         {
-            return Task.FromResult(Results.Ok("hi"));
+            return TypedResults.Ok("hi");
         }
     }
 }
