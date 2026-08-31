@@ -4,14 +4,20 @@ using SixLabors.ImageSharp.Formats.Gif;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 using SixLabors.ImageSharp.Processing.Processors.Quantization;
+using StochasticBackend.src.Scrambler.Configuration;
 
-namespace StochasticBackend.src.Scrambler.Services
+namespace StochasticBackend.src.Scrambler.Filters
 {
-    public class JitterRandomWaveScrambler/*: IScrambler*/
+    public class JitterRandomWaveScrambler: IScrambler
     {
-        private const int TotalFrames = 12;
+        private const int TOTAL_FRAMES = 12;
 
-        public static void PoisonImage(string inputPath, string outputPath)
+        public async Task PoisonImageAsync(string inputPath, string outputPath)
+        {
+            await Task.Run(() => PoisonImage(inputPath, outputPath));
+        }
+
+        public void PoisonImage(string inputPath, string outputPath)
         {
             // 1. Load original image safely into memory
             using var sourceImage = Image.Load<Rgb24>(inputPath);
@@ -21,7 +27,7 @@ namespace StochasticBackend.src.Scrambler.Services
             gifOutput.Metadata.GetGifMetadata().RepeatCount = 0; // Infinite loop
 
             // 3. Generate 12 distinctly chaotic frames
-            for (int frameIndex = 0; frameIndex < TotalFrames; frameIndex++)
+            for (int frameIndex = 0; frameIndex < TOTAL_FRAMES; frameIndex++)
             {
                 // Clone the original to manipulate a fresh copy for this frame
                 var currentFrame = sourceImage.Clone();

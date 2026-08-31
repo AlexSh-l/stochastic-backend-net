@@ -4,14 +4,20 @@ using SixLabors.ImageSharp.Formats.Gif;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 using SixLabors.ImageSharp.Processing.Processors.Quantization;
+using StochasticBackend.src.Scrambler.Configuration;
 
-namespace StochasticBackend.src.Scrambler.Services
+namespace StochasticBackend.src.Scrambler.Filters
 {
-    public class JitterRandomAreaScrambler/*: IScrambler*/
+    public class JitterRandomWaveBackgroundColorScrambler: IScrambler
     {
-        private const int TotalFrames = 12;
+        private const int TOTAL_FRAMES = 12;
 
-        public static void PoisonImage(string inputPath, string outputPath)
+        public async Task PoisonImageAsync(string inputPath, string outputPath)
+        {
+            await Task.Run(() => PoisonImage(inputPath, outputPath));
+        }
+
+        public void PoisonImage(string inputPath, string outputPath)
         {
             // 1. Load original image safely into memory
             using var sourceImage = Image.Load<Rgb24>(inputPath);
@@ -21,7 +27,7 @@ namespace StochasticBackend.src.Scrambler.Services
             gifOutput.Metadata.GetGifMetadata().RepeatCount = 0; // Infinite loop
 
             // 3. Generate 12 distinctly chaotic frames
-            for (int frameIndex = 0; frameIndex < TotalFrames; frameIndex++)
+            for (int frameIndex = 0; frameIndex < TOTAL_FRAMES; frameIndex++)
             {
                 // Clone the original to manipulate a fresh copy for this frame
                 var currentFrame = sourceImage.Clone();
@@ -46,50 +52,60 @@ namespace StochasticBackend.src.Scrambler.Services
 
                         for (int x = 1; x < currentRow.Length - 1; x++)
                         {
-                            // 1. Calculate the curvy diagonal wave path
-                            double diagonalAxis = (x * 0.08) + (y * 0.08);
-                            double curveWarp = Math.Sin((x * 0.05) - (y * 0.05) + frameIndex) * 4.0;
-
-                            // This value smoothly bounces between -1.0 and 1.0
-                            double waveValue = Math.Sin(diagonalAxis + curveWarp + frameIndex);
-
-                            // 2. THE THRESHOLD CHECK (Creates the clean spaces)
-                            if (waveValue < 0.3)
-                            {
-                                continue; // Skip entirely, leaving the original image untouched
-                            }
-
-                            // 3. Load original RGB components
-                            double r = currentRow[x].R;
-                            double g = currentRow[x].G;
-                            double b = currentRow[x].B;
-
-                            // --- TRANSLUCENT DARKENING (OPACITY LENS) ---
-                            // We scale down the original RGB values to darken them.
-                            // 0.70 means the pixel keeps 70% of its original color (effectively a 30% dark shadow).
-                            // Lower this to 0.50 to make the bands darker; raise it to 0.85 to make them more transparent.
-                            double darkenFactor = 0.70;
-
-                            int baseR = (int)(r * darkenFactor);
-                            int baseG = (int)(g * darkenFactor);
-                            int baseB = (int)(b * darkenFactor);
-
-                            // 4. SMART MONOCHROME NOISE AMPLIFICATION (Within the bands only)
+                            // 1. Calculate local neighborhood contrast (Edge Detection)
                             int localContrast = Math.Abs(currentRow[x].R - currentRow[x - 1].R) +
                                                 Math.Abs(currentRow[x].R - currentRow[x + 1].R) +
                                                 Math.Abs(currentRow[x].R - prevRow[x].R) +
                                                 Math.Abs(currentRow[x].R - nextRow[x].R);
 
-                            int dynamicLimit = (localContrast < 15) ? 35 : 65;
+                            // True if it is a flat background layer
+                            bool isBackground = localContrast < 35;
+
+                            // 2. Calculate the curvy diagonal wave path
+                            double diagonalAxis = (x * 0.08) + (y * 0.08);
+                            double curveWarp = Math.Sin((x * 0.05) - (y * 0.05) + frameIndex) * 4.0;
+                            double waveValue = Math.Sin(diagonalAxis + curveWarp + frameIndex);
+
+                            // Load original RGB components
+                            double r = currentRow[x].R;
+                            double g = currentRow[x].G;
+                            double b = currentRow[x].B;
+
+                            // Initialize default baseline colors (Clean, untouched pixels)
+                            int baseR = (int)r;
+                            int baseG = (int)g;
+                            int baseB = (int)b;
+
+                            // 3. APPLY COLORED WAVES ONLY TO THE BACKGROUND
+                            if (waveValue >= 0.3 && isBackground)
+                            {
+                                // --- CHOOSE YOUR COLOR TINT VECTORS ---
+                                // By varying these scales, you can create any translucent color overlay you want.
+                                // Examples:
+                                // Cyberpunk Blue/Cyan: Red=0.50, Green=0.85, Blue=0.95
+                                // Neon Purple/Violet:  Red=0.85, Green=0.50, Blue=0.95
+                                // Warm Amber/Gold:     Red=0.95, Green=0.75, Blue=0.40
+
+                                double redTint = 0.95;
+                                double greenTint = 0.20;
+                                double blueTint = 0.95;
+
+                                baseR = (int)(r * redTint);
+                                baseG = (int)(g * greenTint);
+                                baseB = (int)(b * blueTint);
+                            }
+
+                            // 4. SECURE MONOCHROME NOISE LAYER (Pulsing globally for anti-AI protection)
+                            int dynamicLimit = isBackground ? 35 : 65;
 
                             int staticNoise = 0;
-                            if (frameRandom.NextDouble() < 0.12) // 12% chance of a static dot inside the dark bands
+                            if (frameRandom.NextDouble() < 0.12)
                             {
                                 int rawNoise = frameRandom.Next(-dynamicLimit, dynamicLimit + 1);
                                 staticNoise = (rawNoise / 15) * 15; // Kept your compression step optimization!
                             }
 
-                            // 5. Combine the darkened colors and the monochrome static noise, then clamp safely
+                            // Combine the calculations and clamp safely
                             byte finalR = (byte)Math.Clamp(baseR + staticNoise, 0, 255);
                             byte finalG = (byte)Math.Clamp(baseG + staticNoise, 0, 255);
                             byte finalB = (byte)Math.Clamp(baseB + staticNoise, 0, 255);

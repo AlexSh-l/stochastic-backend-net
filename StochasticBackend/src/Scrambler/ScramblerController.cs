@@ -1,5 +1,7 @@
 ﻿using StochasticBackend.src.Auth.Attributes;
 using StochasticBackend.src.Auth.Configuration;
+using StochasticBackend.src.Scrambler.Configuration;
+using StochasticBackend.src.Scrambler.Exceptions;
 using StochasticBackend.src.Scrambler.Services;
 using StochasticBackend.src.Shared.Routing;
 
@@ -15,7 +17,7 @@ namespace StochasticBackend.src.Scrambler
         }
 
         [HasPermissions(EPermissionOperator.Or, UserPermissions.VIEW_IMAGES, UserPermissions.EDIT_IMAGES)]
-        private static async Task<IResult> HandlePoisonRoute(HttpContext httpContext, IWebHostEnvironment env, string filename = "minthara-original.jpg")
+        private static async Task<IResult> HandlePoisonRoute(HttpContext httpContext, IWebHostEnvironment env, IScramblerService scramblerService, string filename = "minthara-original.jpg")
         {
             string secureFolder = Path.Combine(env.ContentRootPath, "Images");
             string secureOriginsFolder = Path.Combine(secureFolder, "Originals");
@@ -30,12 +32,30 @@ namespace StochasticBackend.src.Scrambler
                 return Results.NotFound(); // 404 Safely Hidden
             }
 
-            JitterRandomWaveBackgroundColorScrambler.PoisonImage(filePath, targetFilePath);
-
-            // 3. Stream the file bytes securely to the authorized browser
-            // This serves the GIF directly from memory without exposing a hard file path
-            //return Results.File(filePath, "image/gif");
-            return TypedResults.Ok("Image processed");
+            try
+            {
+                await scramblerService.PoisonImageAsync(EScramblerTypes.JitterScrambler, filePath, targetFilePath);
+                // 3. Stream the file bytes securely to the authorized browser
+                // This serves the GIF directly from memory without exposing a hard file path
+                //return Results.File(filePath, "image/gif");
+                return TypedResults.Ok("Image processed");
+            }
+            catch (ScramblerException ex)
+            {
+                return Results.Problem(
+                    detail: ex.Message,
+                    statusCode: StatusCodes.Status503ServiceUnavailable,
+                    title: "Server Is Busy"
+                );
+            }
+            catch (Exception ex)
+            {
+                return Results.Problem(
+                   detail: "An unexpected error occurred while processing the image.",
+                   statusCode: StatusCodes.Status500InternalServerError,
+                   title: "Error"
+               );
+            }
         }
     }
 }

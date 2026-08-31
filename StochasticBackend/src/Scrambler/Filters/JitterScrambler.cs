@@ -1,13 +1,20 @@
 ﻿using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
+using StochasticBackend.src.Scrambler.Configuration;
 
-namespace StochasticBackend.src.Scrambler.Services
+namespace StochasticBackend.src.Scrambler.Filters
 {
-    public class JitterScrambler/*: IScrambler*/
+    public class JitterScrambler: IScrambler
     {
-        private const int TotalFrames = 12;
+        private const int TOTAL_FRAMES = 12;
+        private const int JITTER_BLOCK_SIZE = 2;
 
-        public static void PoisonImage(string inputPath, string outputPath, int jitterBlockSize = 2)
+        public async Task PoisonImageAsync(string inputPath, string outputPath)
+        {
+            await Task.Run(() => PoisonImage(inputPath, outputPath));
+        }
+
+        public void PoisonImage(string inputPath, string outputPath)
         {
             // 1. Load original image safely
             using var sourceImage = Image.Load<Rgb24>(inputPath);
@@ -19,13 +26,13 @@ namespace StochasticBackend.src.Scrambler.Services
             var random = new Random();
 
             // 3. Loop to generate 12 completely distinct, shifting frames
-            for (int frameIndex = 0; frameIndex < TotalFrames; frameIndex++)
+            for (int frameIndex = 0; frameIndex < TOTAL_FRAMES; frameIndex++)
             {
                 // Clone the original to manipulate a fresh copy for this frame
                 var currentFrame = sourceImage.Clone();
 
                 // LAYER 1: Macro-Block Spatial Jitter (Dynamic per frame using index)
-                ApplyDynamicMacroJitter(currentFrame, jitterBlockSize, frameIndex);
+                ApplyDynamicMacroJitter(currentFrame, JITTER_BLOCK_SIZE, frameIndex);
 
                 // LAYER 2 & 3: Visible Chrominance Tear + Heavy Retro Static
                 currentFrame.ProcessPixelRows(accessor =>

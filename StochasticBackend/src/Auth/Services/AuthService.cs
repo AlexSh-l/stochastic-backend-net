@@ -64,8 +64,9 @@ namespace StochasticBackend.src.Auth.Services
             catch (DatabaseException ex)
             {
                 Console.WriteLine(ex.Message);
-                return null;
             }
+
+            return null;
         }
     }
 }

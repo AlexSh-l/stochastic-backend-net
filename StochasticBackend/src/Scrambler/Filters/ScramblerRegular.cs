@@ -1,16 +1,22 @@
 ﻿using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
+using StochasticBackend.src.Scrambler.Configuration;
 
-namespace StochasticBackend.src.Scrambler.Services
+namespace StochasticBackend.src.Scrambler.Filters
 {
-    public class Scrambler/*: IScrambler*/
+    public class ScramblerRegular: IScrambler
     {
-        private const int TotalFrames = 12;
+        private const int TOTAL_FRAMES = 12;
 
-        public static void PoisonImage(string inputImagePath, string outputGifPath)
+        public async Task PoisonImageAsync(string inputPath, string outputPath)
+        {
+            await Task.Run(() => PoisonImage(inputPath, outputPath));
+        }
+
+        public void PoisonImage(string inputPath, string outputPath)
         {
             // 1. Load the original image (supports PNG, JPEG, etc.)
-            using Image<Rgba32> sourceImage = Image.Load<Rgba32>(inputImagePath);
+            using Image<Rgba32> sourceImage = Image.Load<Rgba32>(inputPath);
 
             // 2. Create the base animated GIF container using the dimensions of the source
             using Image<Rgba32> gifOutput = new Image<Rgba32>(sourceImage.Width, sourceImage.Height);
@@ -22,7 +28,7 @@ namespace StochasticBackend.src.Scrambler.Services
             Random random = new Random();
 
             // 3. Generate 12 distinct frames
-            for (int frameIndex = 0; frameIndex < TotalFrames; frameIndex++)
+            for (int frameIndex = 0; frameIndex < TOTAL_FRAMES; frameIndex++)
             {
                 // Clone the original image to mutate for this specific frame
                 Image<Rgba32> currentFrame = sourceImage.Clone();
@@ -98,7 +104,7 @@ namespace StochasticBackend.src.Scrambler.Services
             gifOutput.Frames.RemoveFrame(0);
 
             // 5. Save the final file as an animated GIF
-            gifOutput.SaveAsGif(outputGifPath);
+            gifOutput.SaveAsGif(outputPath);
         }
     }
 }

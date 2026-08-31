@@ -1,17 +1,19 @@
 ﻿using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats;
-using SixLabors.ImageSharp.Formats.Gif;
 using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Processing;
-using SixLabors.ImageSharp.Processing.Processors.Quantization;
+using StochasticBackend.src.Scrambler.Configuration;
 
-namespace StochasticBackend.src.Scrambler.Services
+namespace StochasticBackend.src.Scrambler.Filters
 {
-    public class JitterRandomWaveBackgroundColorScrambler/*: IScrambler*/
+    public class JitterRandomScrambler: IScrambler
     {
-        private const int TotalFrames = 12;
+        private const int TOTAL_FRAMES = 12;
 
-        public static void PoisonImage(string inputPath, string outputPath)
+        public async Task PoisonImageAsync(string inputPath, string outputPath)
+        {
+            await Task.Run(() => PoisonImage(inputPath, outputPath));
+        }
+
+        public void PoisonImage(string inputPath, string outputPath)
         {
             // 1. Load original image safely into memory
             using var sourceImage = Image.Load<Rgb24>(inputPath);
@@ -21,7 +23,7 @@ namespace StochasticBackend.src.Scrambler.Services
             gifOutput.Metadata.GetGifMetadata().RepeatCount = 0; // Infinite loop
 
             // 3. Generate 12 distinctly chaotic frames
-            for (int frameIndex = 0; frameIndex < TotalFrames; frameIndex++)
+            for (int frameIndex = 0; frameIndex < TOTAL_FRAMES; frameIndex++)
             {
                 // Clone the original to manipulate a fresh copy for this frame
                 var currentFrame = sourceImage.Clone();
@@ -46,60 +48,35 @@ namespace StochasticBackend.src.Scrambler.Services
 
                         for (int x = 1; x < currentRow.Length - 1; x++)
                         {
-                            // 1. Calculate local neighborhood contrast (Edge Detection)
-                            int localContrast = Math.Abs(currentRow[x].R - currentRow[x - 1].R) +
-                                                Math.Abs(currentRow[x].R - currentRow[x + 1].R) +
-                                                Math.Abs(currentRow[x].R - prevRow[x].R) +
-                                                Math.Abs(currentRow[x].R - nextRow[x].R);
-
-                            // True if it is a flat background layer
-                            bool isBackground = localContrast < 35;
-
-                            // 2. Calculate the curvy diagonal wave path
-                            double diagonalAxis = (x * 0.08) + (y * 0.08);
-                            double curveWarp = Math.Sin((x * 0.05) - (y * 0.05) + frameIndex) * 4.0;
-                            double waveValue = Math.Sin(diagonalAxis + curveWarp + frameIndex);
-
-                            // Load original RGB components
                             double r = currentRow[x].R;
                             double g = currentRow[x].G;
                             double b = currentRow[x].B;
 
-                            // Initialize default baseline colors (Clean, untouched pixels)
-                            int baseR = (int)r;
-                            int baseG = (int)g;
-                            int baseB = (int)b;
+                            // Convert to YCbCr space
+                            double yChan = 0.299 * r + 0.587 * g + 0.114 * b;
+                            double cb = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
+                            double cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
 
-                            // 3. APPLY COLORED WAVES ONLY TO THE BACKGROUND
-                            if (waveValue >= 0.3 && isBackground)
-                            {
-                                // --- CHOOSE YOUR COLOR TINT VECTORS ---
-                                // By varying these scales, you can create any translucent color overlay you want.
-                                // Examples:
-                                // Cyberpunk Blue/Cyan: Red=0.50, Green=0.85, Blue=0.95
-                                // Neon Purple/Violet:  Red=0.85, Green=0.50, Blue=0.95
-                                // Warm Amber/Gold:     Red=0.95, Green=0.75, Blue=0.40
+                            // --- AMPLIFIED CHAOTIC CHROMA SHIFT ---
+                            // Combines your dynamic amplitude shift with a moving wave
+                            double baseAmplitude = 20.0 + (frameRandom.NextDouble() * 25.0);
+                            cb += Math.Sin(frameIndex + (x * 0.1)) * baseAmplitude;
+                            cr += Math.Cos(frameIndex + (y * 0.1)) * baseAmplitude;
 
-                                double redTint = 0.85;
-                                double greenTint = 0.50;
-                                double blueTint = 0.95;
+                            // Revert back to RGB space
+                            int baseR = (int)(yChan + 1.402 * cr);
+                            int baseG = (int)(yChan - 0.344136 * cb - 0.714136 * cr);
+                            int baseB = (int)(yChan + 1.772 * cb);
 
-                                baseR = (int)(r * redTint);
-                                baseG = (int)(g * greenTint);
-                                baseB = (int)(b * blueTint);
-                            }
-
-                            // 4. SECURE MONOCHROME NOISE LAYER (Pulsing globally for anti-AI protection)
-                            int dynamicLimit = isBackground ? 35 : 65;
-
+                            // --- HEAVY TV SNOW STATIC LAYER ---
+                            // 15% chance of intense black/white static dots mapping to old TV signals
                             int staticNoise = 0;
-                            if (frameRandom.NextDouble() < 0.12)
+                            if (frameRandom.NextDouble() < 0.15)
                             {
-                                int rawNoise = frameRandom.Next(-dynamicLimit, dynamicLimit + 1);
-                                staticNoise = (rawNoise / 15) * 15; // Kept your compression step optimization!
+                                staticNoise = frameRandom.Next(-65, 65);
                             }
 
-                            // Combine the calculations and clamp safely
+                            // Combine layers and clamp to safe byte bounds
                             byte finalR = (byte)Math.Clamp(baseR + staticNoise, 0, 255);
                             byte finalG = (byte)Math.Clamp(baseG + staticNoise, 0, 255);
                             byte finalB = (byte)Math.Clamp(baseB + staticNoise, 0, 255);
@@ -110,7 +87,7 @@ namespace StochasticBackend.src.Scrambler.Services
                 });
 
                 // Set a crunchy frame rate delay (approx 70ms) for highly visible heavy animation
-                currentFrame.Frames.RootFrame.Metadata.GetGifMetadata().FrameDelay = 9;
+                currentFrame.Frames.RootFrame.Metadata.GetGifMetadata().FrameDelay = 7;
 
                 // Strip metadata tracking profiles
                 currentFrame.Metadata.ExifProfile = null;
@@ -123,20 +100,6 @@ namespace StochasticBackend.src.Scrambler.Services
 
             // Remove initial blank canvas frame and save out file
             gifOutput.Frames.RemoveFrame(0);
-
-            // --- UPGRADED COMPRESSION ENCODER ---
-            var gifEncoder = new GifEncoder
-            {
-                // WuQuantizer is the standard modern choice for palette quantization.
-                // Reducing MaxColors to 128 merges similar pixels to compress the GIF size.
-                Quantizer = new WuQuantizer(new QuantizerOptions
-                {
-                    MaxColors = 128,             // Cuts file size in half compared to 256 colors
-                    Dither = null,               // Disabling dithering ensures clean compression streams
-                    TransparentColorMode = TransparentColorMode.Preserve
-                }),
-            };
-
             gifOutput.SaveAsGif(outputPath);
         }
 

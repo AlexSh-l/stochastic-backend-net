@@ -1,13 +1,23 @@
 ﻿using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats;
+using SixLabors.ImageSharp.Formats.Gif;
 using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing;
+using SixLabors.ImageSharp.Processing.Processors.Quantization;
+using StochasticBackend.src.Scrambler.Configuration;
 
-namespace StochasticBackend.src.Scrambler.Services
+namespace StochasticBackend.src.Scrambler.Filters
 {
-    public class JitterRandomScrambler/*: IScrambler*/
+    public class JitterRandomAreaScrambler: IScrambler
     {
         private const int TotalFrames = 12;
 
-        public static void PoisonImage(string inputPath, string outputPath)
+        public async Task PoisonImageAsync(string inputPath, string outputPath) 
+        {
+            await Task.Run(() => PoisonImage(inputPath, outputPath));
+        }
+
+        public void PoisonImage(string inputPath, string outputPath)
         {
             // 1. Load original image safely into memory
             using var sourceImage = Image.Load<Rgb24>(inputPath);
@@ -42,35 +52,50 @@ namespace StochasticBackend.src.Scrambler.Services
 
                         for (int x = 1; x < currentRow.Length - 1; x++)
                         {
+                            // 1. Calculate the curvy diagonal wave path
+                            double diagonalAxis = (x * 0.08) + (y * 0.08);
+                            double curveWarp = Math.Sin((x * 0.05) - (y * 0.05) + frameIndex) * 4.0;
+
+                            // This value smoothly bounces between -1.0 and 1.0
+                            double waveValue = Math.Sin(diagonalAxis + curveWarp + frameIndex);
+
+                            // 2. THE THRESHOLD CHECK (Creates the clean spaces)
+                            if (waveValue < 0.3)
+                            {
+                                continue; // Skip entirely, leaving the original image untouched
+                            }
+
+                            // 3. Load original RGB components
                             double r = currentRow[x].R;
                             double g = currentRow[x].G;
                             double b = currentRow[x].B;
 
-                            // Convert to YCbCr space
-                            double yChan = 0.299 * r + 0.587 * g + 0.114 * b;
-                            double cb = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
-                            double cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
+                            // --- TRANSLUCENT DARKENING (OPACITY LENS) ---
+                            // We scale down the original RGB values to darken them.
+                            // 0.70 means the pixel keeps 70% of its original color (effectively a 30% dark shadow).
+                            // Lower this to 0.50 to make the bands darker; raise it to 0.85 to make them more transparent.
+                            double darkenFactor = 0.70;
 
-                            // --- AMPLIFIED CHAOTIC CHROMA SHIFT ---
-                            // Combines your dynamic amplitude shift with a moving wave
-                            double baseAmplitude = 20.0 + (frameRandom.NextDouble() * 25.0);
-                            cb += Math.Sin(frameIndex + (x * 0.1)) * baseAmplitude;
-                            cr += Math.Cos(frameIndex + (y * 0.1)) * baseAmplitude;
+                            int baseR = (int)(r * darkenFactor);
+                            int baseG = (int)(g * darkenFactor);
+                            int baseB = (int)(b * darkenFactor);
 
-                            // Revert back to RGB space
-                            int baseR = (int)(yChan + 1.402 * cr);
-                            int baseG = (int)(yChan - 0.344136 * cb - 0.714136 * cr);
-                            int baseB = (int)(yChan + 1.772 * cb);
+                            // 4. SMART MONOCHROME NOISE AMPLIFICATION (Within the bands only)
+                            int localContrast = Math.Abs(currentRow[x].R - currentRow[x - 1].R) +
+                                                Math.Abs(currentRow[x].R - currentRow[x + 1].R) +
+                                                Math.Abs(currentRow[x].R - prevRow[x].R) +
+                                                Math.Abs(currentRow[x].R - nextRow[x].R);
 
-                            // --- HEAVY TV SNOW STATIC LAYER ---
-                            // 15% chance of intense black/white static dots mapping to old TV signals
+                            int dynamicLimit = (localContrast < 15) ? 35 : 65;
+
                             int staticNoise = 0;
-                            if (frameRandom.NextDouble() < 0.15)
+                            if (frameRandom.NextDouble() < 0.12) // 12% chance of a static dot inside the dark bands
                             {
-                                staticNoise = frameRandom.Next(-65, 65);
+                                int rawNoise = frameRandom.Next(-dynamicLimit, dynamicLimit + 1);
+                                staticNoise = (rawNoise / 15) * 15; // Kept your compression step optimization!
                             }
 
-                            // Combine layers and clamp to safe byte bounds
+                            // 5. Combine the darkened colors and the monochrome static noise, then clamp safely
                             byte finalR = (byte)Math.Clamp(baseR + staticNoise, 0, 255);
                             byte finalG = (byte)Math.Clamp(baseG + staticNoise, 0, 255);
                             byte finalB = (byte)Math.Clamp(baseB + staticNoise, 0, 255);
@@ -81,7 +106,7 @@ namespace StochasticBackend.src.Scrambler.Services
                 });
 
                 // Set a crunchy frame rate delay (approx 70ms) for highly visible heavy animation
-                currentFrame.Frames.RootFrame.Metadata.GetGifMetadata().FrameDelay = 7;
+                currentFrame.Frames.RootFrame.Metadata.GetGifMetadata().FrameDelay = 9;
 
                 // Strip metadata tracking profiles
                 currentFrame.Metadata.ExifProfile = null;
@@ -94,6 +119,20 @@ namespace StochasticBackend.src.Scrambler.Services
 
             // Remove initial blank canvas frame and save out file
             gifOutput.Frames.RemoveFrame(0);
+
+            // --- UPGRADED COMPRESSION ENCODER ---
+            var gifEncoder = new GifEncoder
+            {
+                // WuQuantizer is the standard modern choice for palette quantization.
+                // Reducing MaxColors to 128 merges similar pixels to compress the GIF size.
+                Quantizer = new WuQuantizer(new QuantizerOptions
+                {
+                    MaxColors = 128,             // Cuts file size in half compared to 256 colors
+                    Dither = null,               // Disabling dithering ensures clean compression streams
+                    TransparentColorMode = TransparentColorMode.Preserve
+                }),
+            };
+
             gifOutput.SaveAsGif(outputPath);
         }
 
