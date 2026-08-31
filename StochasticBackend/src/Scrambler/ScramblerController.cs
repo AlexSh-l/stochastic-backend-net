@@ -34,7 +34,7 @@ namespace StochasticBackend.src.Scrambler
 
             try
             {
-                await scramblerService.PoisonImageAsync(EScramblerTypes.JitterScrambler, filePath, targetFilePath);
+                await scramblerService.PoisonImageAsync(EScramblerTypes.JitterRandomWaveBackgroundScrambler, filePath, targetFilePath);
                 // 3. Stream the file bytes securely to the authorized browser
                 // This serves the GIF directly from memory without exposing a hard file path
                 //return Results.File(filePath, "image/gif");

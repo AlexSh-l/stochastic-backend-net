@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using stochastic_backend_net.src.Shared.Extensions;
 using StochasticBackend.src.Auth.Permissions;
 using StochasticBackend.src.Shared.DatabasePSQL;
+using StochasticBackend.src.Shared.Exceptions;
 using StochasticBackend.src.Shared.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -13,7 +14,10 @@ var dbConnectionString = builder.Configuration.GetConnectionString("PostgresConn
 builder.Services.AddDbContext<ApplicationContext>((options) => {
     Console.WriteLine(dbConnectionString);
     options.UseNpgsql(dbConnectionString);
-    });
+});
+
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
@@ -34,6 +38,8 @@ builder.Services.AddSingletonServices();
 builder.Services.AddScopedServices();
 
 var app = builder.Build();
+
+app.UseExceptionHandler();
 
 app.UseAuthentication();
 app.UseAuthorization();
