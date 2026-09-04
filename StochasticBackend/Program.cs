@@ -11,6 +11,17 @@ var builder = WebApplication.CreateBuilder(args);
 
 var dbConnectionString = builder.Configuration.GetConnectionString("PostgresConnection");
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("SessionPolicy", policy =>
+    {
+        policy.WithOrigins("https://localhost:5173");
+        policy.AllowAnyHeader();
+        policy.AllowAnyMethod();
+        policy.AllowCredentials();
+    });
+});
+
 builder.Services.AddDbContext<ApplicationContext>((options) => {
     Console.WriteLine(dbConnectionString);
     options.UseNpgsql(dbConnectionString);
@@ -40,6 +51,8 @@ builder.Services.AddScopedServices();
 var app = builder.Build();
 
 app.UseExceptionHandler();
+
+app.UseCors("SessionPolicy");
 
 app.UseAuthentication();
 app.UseAuthorization();

@@ -15,15 +15,22 @@ namespace StochasticBackend.src.Auth
         public static void MapEndpoint(IEndpointRouteBuilder builder)
         {
             var group = builder.MapGroup("/auth").WithTags("Auth");
-            group.MapGet("/login", HandleLogin);
-            group.MapGet("/register", HandleRegister);
+            group.MapPost("/login", HandleLogin);
+            group.MapPost("/register", HandleRegister);
             group.MapGet("/logout", HandleLogout);
         }
 
-        private static async Task HandleLogin(HttpContext context, ApplicationContext dbContext, IAuthService authService)
+        private static async Task HandleLogin(LoginFormDTO loginForm, HttpContext context, ApplicationContext dbContext, IAuthService authService)
         {
-            string login = "TestUser1";
-            string password = "TestUserPassword1";
+            if (string.IsNullOrEmpty(loginForm.Login) || string.IsNullOrEmpty(loginForm.Password))
+            {
+                context.Response.StatusCode = 400;
+                await context.Response.WriteAsJsonAsync(new { message = "Login or Password are empty" });
+                return;
+            }
+
+            string login = loginForm.Login;
+            string password = loginForm.Password;
 
             UserDTO? user = await authService.LogUserInAsync(login, password);
             if (user is null)
@@ -44,10 +51,17 @@ namespace StochasticBackend.src.Auth
             await context.Response.WriteAsJsonAsync(new { message = "user is logged in" });
         }
 
-        private static async Task<IResult> HandleRegister(HttpContext context, ApplicationContext dbContext, IAuthService authService)
+        private static async Task<IResult> HandleRegister(LoginFormDTO loginForm, HttpContext context, ApplicationContext dbContext, IAuthService authService)
         {
-            string login = "TestUser1";
-            string password = "TestUserPassword1";
+            if (string.IsNullOrEmpty(loginForm.Login) || string.IsNullOrEmpty(loginForm.Password))
+            {
+                context.Response.StatusCode = 400;
+                await context.Response.WriteAsJsonAsync(new { message = "Login or Password are empty" });
+                return Results.BadRequest();
+            }
+
+            string login = loginForm.Login;
+            string password = loginForm.Password;
 
             UserDTO? user = await authService.RegisterUserAsync(login, password);
             if (user is null)
