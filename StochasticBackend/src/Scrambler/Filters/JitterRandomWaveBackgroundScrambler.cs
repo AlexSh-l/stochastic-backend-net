@@ -19,29 +19,20 @@ namespace StochasticBackend.src.Scrambler.Filters
 
         public void PoisonImage(string inputPath, string outputPath)
         {
-            // 1. Load original image safely into memory
             using var sourceImage = Image.Load<Rgb24>(inputPath);
 
-            // 2. Create the base multi-frame GIF container
             using var gifOutput = new Image<Rgb24>(sourceImage.Width, sourceImage.Height);
-            gifOutput.Metadata.GetGifMetadata().RepeatCount = 0; // Infinite loop
+            gifOutput.Metadata.GetGifMetadata().RepeatCount = 0;
 
-            // 3. Generate 12 distinctly chaotic frames
             for (int frameIndex = 0; frameIndex < TOTAL_FRAMES; frameIndex++)
             {
-                // Clone the original to manipulate a fresh copy for this frame
                 var currentFrame = sourceImage.Clone();
 
-                // CRITICAL: Seed the Random object with the frame index!
-                // This ensures Frame 1 always generates the exact same 'Chaos 1' pattern,
-                // giving the GIF smooth, crisp temporal playback instead of complete blur.
                 Random frameRandom = new Random(frameIndex);
 
-                // LAYER 1: Your Chaotic Macro-Block Jitter with non-uniform step sizes
                 int dynamicBlockSize = frameRandom.Next(2, 5);
                 ApplyChaoticJitterPerFrame(currentFrame, dynamicBlockSize, frameRandom);
 
-                // LAYER 2 & 3: Visible Chrominance Tear + Heavy Retro Static
                 currentFrame.ProcessPixelRows(accessor =>
                 {
                     for (int y = 1; y < accessor.Height - 1; y++)
@@ -52,57 +43,49 @@ namespace StochasticBackend.src.Scrambler.Filters
 
                         for (int x = 1; x < currentRow.Length - 1; x++)
                         {
-                            // 1. Calculate local neighborhood contrast (Edge Detection)
-                            // AI models and human eyes track edges. Flat areas have very low contrast.
                             int localContrast = Math.Abs(currentRow[x].R - currentRow[x - 1].R) +
                                                 Math.Abs(currentRow[x].R - currentRow[x + 1].R) +
                                                 Math.Abs(currentRow[x].R - prevRow[x].R) +
                                                 Math.Abs(currentRow[x].R - nextRow[x].R);
 
-                            // 2. BACKGROUND MASK CALCULATOR (Deterministic Segmentation)
-                            // If local contrast is high (> 35), the pixel belongs to an intricate edge (Foreground).
-                            // If local contrast is low (< 35), it is likely a flat canvas backdrop or sky (Background).
+                            // Deterministic Segmentation (background mask)
+                            // If local contrast is high (> 35), the pixel belongs to an edge (Foreground)
+                            // If local contrast is low (< 35), it is likely a flat backdrop or sky (Background)
                             bool isBackground = localContrast < 35;
 
-                            // 3. Calculate your curvy diagonal wave path
+                            // Wave
                             double diagonalAxis = (x * 0.08) + (y * 0.08);
                             double curveWarp = Math.Sin((x * 0.05) - (y * 0.05) + frameIndex) * 4.0;
                             double waveValue = Math.Sin(diagonalAxis + curveWarp + frameIndex);
 
-                            // Load original RGB components
                             double r = currentRow[x].R;
                             double g = currentRow[x].G;
                             double b = currentRow[x].B;
 
-                            // Initialize default baseline colors (Clean, untouched image pixels)
                             int baseR = (int)r;
                             int baseG = (int)g;
                             int baseB = (int)b;
 
-                            // 4. APPLY THE WAVES ONLY TO THE BACKGROUND
-                            // If the wave threshold passes AND our math determines it is the background backdrop:
+                            // If the wave threshold passes AND our math determines it is the background backdrop
                             if (waveValue >= 0.3 && isBackground)
                             {
-                                // Apply the translucent darkening mask (keeps 70% brightness)
+                                // Apply the translucent darkening mask (keeps 90% brightness)
                                 double darkenFactor = 0.90;
                                 baseR = (int)(r * darkenFactor);
                                 baseG = (int)(g * darkenFactor);
                                 baseB = (int)(b * darkenFactor);
                             }
 
-                            // 5. SECURE MONOCHROME NOISE LAYER (Applies everywhere to preserve AI-poisoning)
-                            // Even if the visual waves are locked to the background, we keep random noise 
-                            // pulsing globally so the foreground object remains protected from AI scraping layers!
-                            int dynamicLimit = isBackground ? 35 : 85; // Crank it up on foreground details!
+                            // Monochrome noise (12%)
+                            int dynamicLimit = isBackground ? 35 : 85;
 
                             int staticNoise = 0;
-                            if (frameRandom.NextDouble() < 0.12) // 12% television snow chance
+                            if (frameRandom.NextDouble() < 0.12)
                             {
                                 int rawNoise = frameRandom.Next(-dynamicLimit, dynamicLimit + 1);
-                                staticNoise = (rawNoise / 15) * 15; // Kept your compression step optimization!
+                                staticNoise = (rawNoise / 15) * 15;
                             }
 
-                            // Combine the calculations and clamp safely
                             byte finalR = (byte)Math.Clamp(baseR + staticNoise, 0, 255);
                             byte finalG = (byte)Math.Clamp(baseG + staticNoise, 0, 255);
                             byte finalB = (byte)Math.Clamp(baseB + staticNoise, 0, 255);
@@ -112,30 +95,23 @@ namespace StochasticBackend.src.Scrambler.Filters
                     }
                 });
 
-                // Set a crunchy frame rate delay (approx 70ms) for highly visible heavy animation
                 currentFrame.Frames.RootFrame.Metadata.GetGifMetadata().FrameDelay = 9;
 
-                // Strip metadata tracking profiles
                 currentFrame.Metadata.ExifProfile = null;
                 currentFrame.Metadata.IptcProfile = null;
                 currentFrame.Metadata.XmpProfile = null;
 
-                // Push the processed frame into our final animated compilation
                 gifOutput.Frames.AddFrame(currentFrame.Frames.RootFrame);
             }
 
-            // Remove initial blank canvas frame and save out file
             gifOutput.Frames.RemoveFrame(0);
 
-            // --- UPGRADED COMPRESSION ENCODER ---
             var gifEncoder = new GifEncoder
             {
-                // WuQuantizer is the standard modern choice for palette quantization.
-                // Reducing MaxColors to 128 merges similar pixels to compress the GIF size.
                 Quantizer = new WuQuantizer(new QuantizerOptions
                 {
-                    MaxColors = 128,             // Cuts file size in half compared to 256 colors
-                    Dither = null,               // Disabling dithering ensures clean compression streams
+                    MaxColors = 128,
+                    Dither = null,
                     TransparentColorMode = TransparentColorMode.Preserve
                 }),
             };

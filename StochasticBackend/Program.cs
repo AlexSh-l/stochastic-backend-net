@@ -11,6 +11,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 var dbConnectionString = builder.Configuration.GetConnectionString("PostgresConnection");
 
+builder.Services.AddAntiforgery(options =>
+{
+    options.HeaderName = "X-XSRF-TOKEN";
+});
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("SessionPolicy", policy =>
@@ -56,6 +60,8 @@ app.UseCors("SessionPolicy");
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.UseAntiforgery();
 
 app.MapEndpoints();
 
