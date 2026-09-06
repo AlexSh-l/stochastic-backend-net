@@ -16,25 +16,19 @@ namespace StochasticBackend.src.Scrambler.Filters
 
         public void PoisonImage(string inputPath, string outputPath)
         {
-            // 1. Load original image safely
             using var sourceImage = Image.Load<Rgb24>(inputPath);
 
-            // 2. Create the base multi-frame GIF container
             using var gifOutput = new Image<Rgb24>(sourceImage.Width, sourceImage.Height);
-            gifOutput.Metadata.GetGifMetadata().RepeatCount = 0; // Infinite loop
+            gifOutput.Metadata.GetGifMetadata().RepeatCount = 0;
 
             var random = new Random();
 
-            // 3. Loop to generate 12 completely distinct, shifting frames
             for (int frameIndex = 0; frameIndex < TOTAL_FRAMES; frameIndex++)
             {
-                // Clone the original to manipulate a fresh copy for this frame
                 var currentFrame = sourceImage.Clone();
 
-                // LAYER 1: Macro-Block Spatial Jitter (Dynamic per frame using index)
                 ApplyDynamicMacroJitter(currentFrame, JITTER_BLOCK_SIZE, frameIndex);
 
-                // LAYER 2 & 3: Visible Chrominance Tear + Heavy Retro Static
                 currentFrame.ProcessPixelRows(accessor =>
                 {
                     for (int y = 1; y < accessor.Height - 1; y++)
@@ -54,26 +48,21 @@ namespace StochasticBackend.src.Scrambler.Filters
                             double cb = -0.168736 * r - 0.331264 * g + 0.5 * b;
                             double cr = 0.5 * r - 0.418688 * g - 0.081312 * b;
 
-                            // --- UPGRADED CHROMA SHIFT: Animating Color Glitch Effect ---
-                            // Incorporating frameIndex ensures the color distortions move organically
-                            cb += Math.Sin(frameIndex + (x * 0.1)) * 30.0; // Noticeable color bleed
+                            // Chroma shift glitch effect
+                            cb += Math.Sin(frameIndex + (x * 0.1)) * 30.0;
                             cr += Math.Cos(frameIndex + (y * 0.1)) * 30.0;
 
-                            // Revert back to RGB space
                             int baseR = (int)(yChan + 1.402 * cr);
                             int baseG = (int)(yChan - 0.344136 * cb - 0.714136 * cr);
                             int baseB = (int)(yChan + 1.772 * cb);
 
-                            // --- UPGRADED RANDOM STATIC: Visible TV Snow ---
-                            // We remove the texture masking because we WANT the static visible everywhere
-                            // 15% chance of intense black/white static dots mapping to old TV signals
+                            // Random static
                             int staticNoise = 0;
                             if (random.NextDouble() < 0.15)
                             {
                                 staticNoise = random.Next(-65, 65);
                             }
 
-                            // Combine layers and clamp to safe byte bounds
                             byte finalR = (byte)Math.Clamp(baseR + staticNoise, 0, 255);
                             byte finalG = (byte)Math.Clamp(baseG + staticNoise, 0, 255);
                             byte finalB = (byte)Math.Clamp(baseB + staticNoise, 0, 255);
@@ -83,19 +72,15 @@ namespace StochasticBackend.src.Scrambler.Filters
                     }
                 });
 
-                // Set a crunchy frame rate (approx 70ms per frame) for visible heavy animation
                 currentFrame.Frames.RootFrame.Metadata.GetGifMetadata().FrameDelay = 7;
 
-                // Strip metadata tracking on every frame
                 currentFrame.Metadata.ExifProfile = null;
                 currentFrame.Metadata.IptcProfile = null;
                 currentFrame.Metadata.XmpProfile = null;
 
-                // Push the processed frame into our final animated compilation
                 gifOutput.Frames.AddFrame(currentFrame.Frames.RootFrame);
             }
 
-            // Remove initial blank canvas frame and save out file
             gifOutput.Frames.RemoveFrame(0);
             gifOutput.SaveAsGif(outputPath);
         }
@@ -103,8 +88,8 @@ namespace StochasticBackend.src.Scrambler.Filters
         private static void ApplyDynamicMacroJitter(Image<Rgb24> image, int blockSize, int frameIndex)
         {
             int step = blockSize * 2;
-            // Offsetting the loop starting point by frameIndex causes the macro-blocks 
-            // to dance/vibrate rather than standing completely still across frames.
+
+            // Offset the loop starting point by frameIndex for vibration across frames
             int offset = frameIndex % blockSize;
 
             for (int y = offset; y < image.Height - step; y += step)
